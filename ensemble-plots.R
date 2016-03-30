@@ -14,7 +14,7 @@ if(file.exists("plot_data.Rdata")){
 }
 
 ###################################################
-# Simple plotting function 
+# Simple plotting function
 
 plot_output <- function(plot_data, vars, params){
   for(v in vars){

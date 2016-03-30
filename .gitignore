@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 ensemble.Rdata
+plots/*
+plot_data.Rdata
+NPP_sensitivity_smoothed.png

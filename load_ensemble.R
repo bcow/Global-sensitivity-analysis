@@ -2,7 +2,6 @@ library(ncdf4)
 library(ncdf4.helpers)
 library(stringr)
 library(PEcAn.all)
-library(ggplot2)
 
 if(file.exists("ensemble.Rdata")){
   load("ensemble.Rdata")
@@ -67,4 +66,33 @@ if(file.exists("ensemble.Rdata")){
   
   save.image("ensemble.Rdata")
 }
+
+# Basic plotting without any error bars
+
+par(mfrow = c(5,2))
+
+for(p in params){
+  plot(init[,p], means[,"NPP"], xlab = p, ylab="NPP")
+}
+
+
+#########################################################
+out_LB <- sapply(out, "[[", "LeafBiomass")
+
+
+
+P <- "autotrophic_respiration_fraction"
+M <- "NPP"
+
+P <- "litter_respiration_rate"
+M <- "LeafBiomass"
+
+library(reshape)
+test <- melt(out_LB)
+test$init <- rep(init[,P], 4018)
+
+plot(test$init, test$)
+
+plot(init[,P], means[,M], xlab = P, ylab=M)
+
 
