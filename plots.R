@@ -1,52 +1,48 @@
 load("ensemble.Rdata")
 
-plot_data <- init
+if(file.exists("plot_data.Rdata")){
+  load("plot_data.Rdata")
+}else{
+  plot_data <- init
+  for(v in vars){
+    V <-  sapply(out, "[[", v)
+    stats <- t(apply(V, 2, function(x) quantile(x, c(.975,.5,.025), na.rm=TRUE)))
+    colnames(stats) <- c(paste0(v,"_CI_high"),paste0(v,"_mean"),paste0(v,"_CI_low"))
+    plot_data <- cbind(plot_data, stats)
+  }
+  save(plot_data, file="plot_data.Rdata")
+}
 
 ###################################################
-# NPP
+# Simple plotting function 
 
-NPP <- sapply(out, "[[", "NPP")
-NPP_stats <- as.data.frame(matrix(NA, nrow=1000, ncol=3))
-
-for (i in 1:1000){
-  NPP_stats[i,] <- quantile(NPP[,i], c(.975,.5,.025),na.rm=TRUE)
-}
-colnames(NPP_stats) <- c("NPP_CI_high", "NPP_mean", "NPP_CI_low")
-
-plot_data <- cbind(plot_data, NPP_stats)
-
-par(mfrow = c(4,3))
-for(p in params){
-  plot(plot_data[,p], NPP_CI_high, ylim=c(min(NPP_CI_low), max(NPP_CI_high)), col="red")
-  points(plot_data[,p], NPP_CI_low, col = "blue")
-  points(plot_data[,p], NPP_mean)
-}
-
-
-###################################################
-# Total Living Biomass
-
-TLB <- sapply(out, "[[", "TotLivBiom")
-TLB_stats <- as.data.frame(matrix(NA, nrow=1000, ncol=3))
-colnames(TLB_stats) <- c("TLB_CI_high", "TLB_mean", "TLB_CI_low")
-
-for (i in 1:1000){
-  TLB_stats[i,] <- quantile(TLB[,i], c(.975,.5,.025),na.rm=TRUE)
-}
-
-plot_data <- cbind(plot_data, TLB_stats)
-attach(plot_data)
-
-par(mfrow = c(3,4))
-for(p in params){
-  plot(plot_data[,p], TLB_CI_high, ylim=c(min(TLB_CI_low), max(TLB_CI_high)), col="red")
-  points(plot_data[,p], TLB_CI_low, col = "blue")
-  points(plot_data[,p], TLB_mean)
+plot_output <- function(plot_data, vars, params){
+  for(v in vars){
+    mean <- paste0(v,"_mean")
+    high <- paste0(v,"_CI_high")
+    low <- paste0(v,"_CI_low")
+    
+    png(filename=file.path("plots",paste0(v,"_sensitivity.png")), width = 2000, height = 2200)
+    par(mfrow = c(4,3))
+    for(p in params){
+      plot(plot_data[,p], plot_data[,high], col="red",
+           ylim=c(min(plot_data[,low]), max(plot_data[,high])))
+      points(plot_data[,p],plot_data[,low], col = "blue")
+      points(plot_data[,p], plot_data[,mean])
+      title(xlab=(p), ylab=(v), cex.lab = 3)
+    } 
+    dev.off()
+  }
 }
 
 
 ###################################################
-# ggplot
+# All the possible plots, takes a while 
+
+plot_output(plot_data, vars, params)
+
+###################################################
+# Interesting plots with ggplot
 
 par(mfrow=c(1,1))
 
@@ -57,25 +53,11 @@ ggplot(plot_data, aes(x=autotrophic_respiration_fraction, y=NPP_mean), col =2) +
   ylab("NPP") +
   theme_bw()
 
-ggplot(plot_data, aes(x=autotrophic_respiration_fraction, y=TLB_mean), col =2) + 
-  geom_errorbar(aes(ymin=TLB_CI_low, ymax=TLB_CI_high), colour="gray", width=.01) +
+
+ggplot(plot_data, aes(x=root_turnover_rate, y=RootLitter_mean), col =2) + 
+  geom_errorbar(aes(ymin=RootLitter_CI_low, ymax=RootLitter_CI_high), colour="gray", width=.001) +
   geom_line() +
   geom_point(size=3) +
-  ylab("Total Living Biomass") +
+  ylab("Root Litter") +
   theme_bw()
 
-# ###################################################
-# 
-# LB <- sapply(out, "[[", "LitterBiomass")
-# LB_stats <- as.data.frame(matrix(NA, nrow=1000, ncol=3))
-# colnames(LB_stats) <- c("CI_high", "mean", "CI_low")
-# 
-# for (i in 1:1000){
-#   LB_stats[i,] <- quantile(LB[,i], c(.975,.5,.025),na.rm=TRUE)
-# }
-# 
-# 
-# plot(init$litter_respiration_rate[1:100], LB_stats$mean[1:100], xlim = c(0,.02))
-# points(init$litter_respiration_rate[1:100], LB_stats$CI_high[1:100], col = "red")
-# points(init$litter_respiration_rate[1:100], LB_stats$CI_low[1:100], col = "blue")
-# 
