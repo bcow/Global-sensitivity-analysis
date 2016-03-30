@@ -2,6 +2,7 @@ library(ncdf4)
 library(ncdf4.helpers)
 library(stringr)
 library(PEcAn.all)
+library(ggplot2)
 
 if(file.exists("ensemble.Rdata")){
   load("ensemble.Rdata")
@@ -66,15 +67,4 @@ if(file.exists("ensemble.Rdata")){
   
   save.image("ensemble.Rdata")
 }
-
-# Basic plotting without any error bars
-
-par(mfrow = c(5,2))
-
-for(p in params){
-  plot(init[,p], means[,"NPP"], xlab = p, ylab="NPP")
-}
-
-
-
 
