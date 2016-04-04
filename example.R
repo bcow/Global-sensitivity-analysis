@@ -19,37 +19,10 @@ vars <- nc.get.variable.list(nc)
 nc_close(nc)
 print(vars)
 
-Rprof()
 ensemble.out <- load_ensemble(outdir = output.dir, settings = settings, variable = vars)
-Rprof(NULL)
 
-# Basic plotting without any error bars
-par(mfrow = c(5,2))
-
-for(p in params){
-  plot(init[,p], means[,"NPP"], xlab = p, ylab="NPP")
-}
-
-
-#########################################################
-out_LB <- sapply(out, "[[", "LeafBiomass")
-
-
-
-P <- "autotrophic_respiration_fraction"
-M <- "NPP"
-
-P <- "litter_respiration_rate"
-M <- "LeafBiomass"
-
-library(reshape)
-test <- melt(out_LB)
-test$init <- rep(init[,P], 4018)
-
-plot(test$init, test$)
-
-plot(init[,P], means[,M], xlab = P, ylab=M)
-
+# Simple plot of all points
+plot(GPP ~ temperate.coniferous.Amax, data=ensemble.out)
 
 
 #----------
