@@ -1,98 +1,54 @@
-library(ncdf4)
-library(ncdf4.helpers)
-library(stringr)
-library(PEcAn.all)
-
-if(file.exists("ensemble.Rdata")){
-  load("ensemble.Rdata")
-}else{
+load_ensemble <- function(outdir, settings, variable){
+  require(PEcAn.all)
+  require(ncdf4)
   
-  settings <- xmlToList(xmlParse("/fs/data2/output/PEcAn_1000001432/pecan.xml"))
-  runs <- dir(settings$run$host$outdir, full.names=TRUE)
-  
-  # get the output variable names, probably not the best way to do it but meh
-  nc <- nc_open(dir(runs[1], full.names=TRUE)[1])
-  vars <- nc.get.variable.list(nc)
-  
-  ###################################################
   # Load the model output 
+  ## ANS -- NOTE: There may be a faster/better way to do this using built-in PEcAn functions
+  ## ANS -- or...should these be automatically stored somewhere?
   
-  out <- list()
+  ensemble.output.raw <- read.ensemble.output(ensemble.size = as.numeric(settings$ensemble$size),
+                                              pecandir = outdir,
+                                              outdir = settings$modeloutdir,
+                                              start.year = as.numeric(settings$ensemble$start.year),
+                                              end.year = as.numeric(settings$ensemble$end.year),
+                                              variable = variable)
+  ensemble.output <- data.frame(do.call(rbind, ensemble.output.raw))
   
-  for (i in 1:length(runs)){
-    print(sprintf("Run %.0f", i))
-    out[[i]] <- read.output(runid = basename(runs[i]), 
-                            outdir = runs[i], 
-                            start.year = year(settings$run$start.date), 
-                            end.year = year(settings$run$end.date), 
-                            variables = vars)
-  }
+  ## NOTE: read.ensemble.output only returns the mean value at each timestep.
+  ## If we want other statistics, they need to be either hard-coded (loop with read.output), 
+  ## or read.ensemble.output needs to be modified.
   
-  # data.frame of means from each run, this is just a first pass - we should have additional statistics
-  means <- data.frame(matrix(NA, nrow = length(runs), ncol = length(vars)))
-  colnames(means) <- vars
+  # Load parameter values
+  load(file.path(outdir, "samples.Rdata"))
+  ## "samples.RData" contains the following:
+  ##    ensemble.samples -- For each PFT, data.frame of sampled parameter values. Not linked to run IDs, but presumably in same order
+  ##    pft.names -- Names of each PFT
+  ##    runs.samples -- Run IDs, not paired with anything, but probably in same order as samples
+  ##    sa.samples -- Sensitivity analysis samples? Here it's blank
+  ##    trait.names -- Names of parameters (traits) sampled; list by PFT.
+  ##    trait.samples -- Samples from meta-analysis? 5004 samples per trait.
   
-  for (i in 1:length(vars)){
-    means[,i] <- colMeans(sapply(out, "[[", vars[i]))
-  }
+  ensemble.output$runid <- runs.samples$ensemble$id
+  ensemble.samples.cbind <- do.call(cbind, ensemble.samples[pft.names])
+  ensemble.output.full <- cbind(ensemble.output, ensemble.samples.cbind)
   
-  ###################################################
-  # Load parameter initialization values
-  
-  # DALEC parameter names are kind of screwed up so I'm hardcoding them in for now.
-  params <- c("-t2","-t3","-t1","-t8","-t7","-t9","-t7","-t4","-t5","-SLA")
-  params <- c("autotrophic_respiration_fraction",
-              "leaf_allocation_fraction",
-              "litter_decomposition_to_SOM",
-              "litter_respiration_rate",
-              "wood_turnover_rate",
-              "som_respiration_rate",
-              "root_turnover_rate",
-              "root_allocation_fraction",
-              "leaf_turnover_rate",
-              "SLA")
-  
-  init <- data.frame(matrix(NA, nrow = length(runs), ncol = 10))
-  colnames(init) <- params
-  
-  run_files <- dir(settings$run$host$run, full.names=TRUE)
-  
-  for (i in 1:length(runs)){
-    print(sprintf("Run %.0f", i))
-    conf <- file.path(run_files[i],paste0("CONFIG.",basename(run_files[i])))
-    conf_split <- unlist(strsplit(str_trim(readLines(conf))," "))
-    init[i,] <- as.numeric(conf_split[seq(2, length(conf_split), 2)])
-  }
-  
-  save.image("ensemble.Rdata")
+  return(ensemble.output.full)
 }
 
-# Basic plotting without any error bars
+#----------
+# Alexey's Notes
 
-par(mfrow = c(5,2))
+## Load ensemble samples
+# ensemble.all.files <- list.files(output.dir, "ensemble")
+# ensemble.file <- list.files(output.dir, "ensemble.samples")
+# load(file.path(output.dir, ensemble.file))
 
-for(p in params){
-  plot(init[,p], means[,"NPP"], xlab = p, ylab="NPP")
-}
+## "ensemble.output" contains the following:
+##    ensemble.output -- List containing a single named value ("AGB")
 
-
-#########################################################
-out_LB <- sapply(out, "[[", "LeafBiomass")
-
-
-
-P <- "autotrophic_respiration_fraction"
-M <- "NPP"
-
-P <- "litter_respiration_rate"
-M <- "LeafBiomass"
-
-library(reshape)
-test <- melt(out_LB)
-test$init <- rep(init[,P], 4018)
-
-plot(test$init, test$)
-
-plot(init[,P], means[,M], xlab = P, ylab=M)
-
-
+## "ensemble.samples" contains the following:
+##    ens.run.ids -- Run IDs, not paired with anything, but probably in same order as samples
+##    ens.ensemble.id -- Just one value; probably in case there are multiple ensembles?
+##    ens.samples -- For each PFT, data frame of sampled parameter values. Not linked to run IDs, but presumably in same order?
+##    pft.names -- Names of each PFT
+##    trait.names -- List of names of traits

@@ -1,0 +1,75 @@
+---
+title: "Sensitivity Analysis"
+author: "Betsy Cowdery and Alexey Shiklomanov"
+date: "4/4/2016"
+output: html_document
+runtime: shiny
+---
+
+This has to be run on pecan2.bu.edu to work. First, we load the PEcAn data.
+
+```{r, results='hide'}
+library(PEcAn.all)
+library(ncdf4)
+library(ncdf4.helpers)
+pecan.id <- 1437    ## SIPNET, 500 member ensemble -- Alexey
+# Some alternative ID's to choose from:
+#pecan.id <- 1432    ## DALEC, 1000 member ensemble -- Betsy; original
+#pecan.id <- 1436    ## DALEC, 200 member ensemble -- Alexey; more recent
+#pecan.id <- 1347    ## Linkages; Ann(?); Complete ensemble analysis
+output.dir <- paste0("/fs/data2/output/PEcAn_100000", pecan.id)
+settings <- xmlToList(xmlParse(file.path(output.dir,"pecan.xml")))
+runs <- list.files(settings$modeloutdir, full.names = TRUE)
+```
+
+Then we grab the list of output variables.
+
+```{r}
+nc <- nc_open(dir(runs[1], full.names=TRUE)[1])
+vars <- nc.get.variable.list(nc)
+nc_close(nc)
+```
+
+Then we source the function definitions and load the ensemble output into memory. Note that `vars` is a vector of variable names, all of which are loaded in a single command. You can pass any list of one or more variables into the `load_ensemble` function.
+
+Also note that this takes a while and may produce a lot of text.
+
+```{r, results='hide'}
+source("load_ensemble.R")
+if(file.exists("ensemble.out.RData")){
+  load("ensemble.out.RData")
+  } else {
+  ensemble.out <- load_ensemble(outdir = output.dir, settings = settings, variable = vars)
+  save("ensemble.out.RData")
+}
+params <- colnames(ensemble.out)[!colnames(ensemble.out) %in% vars]
+```
+
+Finally, we load the plotting functions...
+
+```{r}
+source("ensemble-plots.R")
+```
+
+...and viola! Feel free to play with this shiny magic.
+
+```{r, echo=FALSE}
+ui <- fluidPage(
+  selectInput("x_select", label = "Parameter", choices = params, selected = params[2]),
+  selectInput("y_select", label = "Variable", choices = vars, selected = vars[length(vars)]),
+  selectInput("fitmethod_select", label = "Fit method", choices=c("lm", "spline"), selected="lm"),
+  checkboxInput('pdf_select', 'Show PDFs:', TRUE),
+  plotOutput("sensitivity")  
+)
+
+server <- function(input, output){
+  output$sensitivity <- renderPlot({
+    plot.ensemble(ensemble.out, input$x_select, input$y_select, input$pdf_select, input$fitmethod_select)
+    })
+  }
+
+shinyApp(ui=ui, server=server)
+```
+
+
+
